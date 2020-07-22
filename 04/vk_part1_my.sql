@@ -120,7 +120,7 @@ CREATE TABLE repost(
 	FOREIGN KEY (post_id) REFERENCES posts(id)
 );
 
--- РўР°Р±Р»РёС†Р° Р»Р°Р№РєРѕРІ (РІСЃРµС…, РєР°Рє РІР°СЂРёР°РЅС‚)
+-- Вариант одной таблицы для всех лайков
 /*DROP TABLE IF EXISTS likes;
 CREATE TABLE likes(
 	user_id BIGINT UNSIGNED NOT NULL,
@@ -133,8 +133,8 @@ CREATE TABLE likes(
     FOREIGN KEY (user_id) REFERENCES users(id)
 );*/
 
--- РўР°Р±Р»РёС†С‹ Р»Р°Р№РєРѕРІ (РїРѕ РѕС‚РґРµР»СЊРЅРѕСЃС‚Рё)
--- Р›Р°Р№РєРё С„РѕС‚РѕРє
+-- Вариант отдельных таблиц для соответствующих лайков
+-- Лайки фоток
 DROP TABLE IF EXISTS likes_photos;
 CREATE TABLE likes_photos(
 	user_id BIGINT UNSIGNED NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE likes_photos(
     FOREIGN KEY (photo_id) REFERENCES photos(id)
 );
 
--- Р›Р°Р№РєРё РїРѕСЃС‚РѕРІ
+-- Лайки постов
 DROP TABLE IF EXISTS likes_posts;
 CREATE TABLE likes_posts(
 	user_id BIGINT UNSIGNED NOT NULL,
@@ -160,7 +160,7 @@ CREATE TABLE likes_posts(
     FOREIGN KEY (post_id) REFERENCES posts(id)
 );
 
--- Р›Р°Р№РєРё СЋР·РµСЂРѕРІ
+-- Лайки юзеров
 DROP TABLE IF EXISTS likes_users;
 CREATE TABLE likes_users(
 	user_id BIGINT UNSIGNED NOT NULL,

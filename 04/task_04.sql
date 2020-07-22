@@ -14,7 +14,7 @@ DROP DATABASE IF EXISTS gb_snet_v1;
 CREATE DATABASE gb_snet_v1 CHARACTER SET utf8 COLLATE utf8_general_ci;
 -- Переключаюсь на новую БД (В случае с Workbench такая операция имеет место быть. В DBeaver все равно нужно выбирать БД)
 USE gb_snet_v1;
--- На этом шаге выполняю скрипт из файла snet_v1.sql...
+-- На этом шаге выполняю скрипт из файла snet_v1.sql... (Но перед выполнением изменил порядок выполнения команд)
 -- Теперь БД gb_snet_v1 заполнена. Буду импортировать данные в свою из этой БД.
 
 -- Опять переключаюсь на свою БД
@@ -27,38 +27,78 @@ INSERT INTO users (email, phone, pass)
 	FROM gb_snet_v1.users AS su
 	LIMIT 100;
 
--- Удаляю все записи у которых номер телефона начинается с 9
-DELETE FROM users
-WHERE phone LIKE '9%';
-
--- Смотрим сколько осталось записей
-SELECT COUNT(*) AS count FROM users;
-
--- Удалим все остальное
-DELETE FROM users;
--- Теперь таблица пустая
-
--- Еще раз заполняю таблицу users данными
-INSERT INTO users (email, phone, pass)
-	SELECT
-		su.email, su.phone, su.pass
-	FROM gb_snet_v1.users AS su
-	LIMIT 100, 50;
-
--- Смотрим минимальный и максимальный ID
-SELECT MIN(id) AS min, MAX(id) AS max FROM users;
-
--- Полностью очищаю таблицу (Тут у меня ничего не вышло из-за ограничения внешнего ключа...)
--- TRUNCATE TABLE users;
--- Поэтому сношу БД и пересоздаю и заполняю заново...
-
-
 -- Теперь заполняю таблицу profiles
 INSERT INTO profiles
 	SELECT * FROM gb_snet_v1.profiles AS sp WHERE id BETWEEN 1 and 100;
 
--- Обновим пароль у юзера с ID = 1
-UPDATE users
-	SET pass = 'f32fbcf0821be759a4346028fec386200bbcd8d9'
-	WHERE id = 1;
+-- Изменяю режим безопасности чтоб можно было удалять и изменять записиalter
+SET SQL_SAFE_UPDATES = 0;
+
+-- Удаляю все записи из profiles, которые моложе 1987 г.р.
+DELETE FROM profiles
+WHERE birthday > '1987-01-01';
+
+-- Смотрим сколько осталось записей
+SELECT COUNT(*) AS count FROM profiles;
+
+-- Удалим все остальное
+DELETE FROM profiles;
+-- Теперь таблица пустая
+
+-- Еще раз заполняю таблицу users данными
+INSERT INTO profiles (user_id, gender, name, surname, birthday, photo_id, created_at, hometown)
+	SELECT
+		sp.user_id, sp.gender, sp.name, sp.surname, sp.birthday, sp.photo_id, sp.created_at, sp.hometown
+    FROM gb_snet_v1.profiles AS sp
+    LIMIT 100;
+
+-- Смотрим минимальный и максимальный ID
+SELECT MIN(id) AS min, MAX(id) AS max FROM profiles;
+
+-- Полностью очищаю таблицу
+TRUNCATE TABLE profiles;
+
+-- Еще раз добавляем данные, только теперь все профили ко всем юзерам
+INSERT INTO profiles (user_id, gender, name, surname, birthday, photo_id, created_at, hometown)
+	SELECT
+		sp.user_id, sp.gender, sp.name, sp.surname, sp.birthday, sp.photo_id, sp.created_at, sp.hometown
+    FROM gb_snet_v1.profiles AS sp
+    WHERE user_id IN (SELECT id FROM users AS u);
+
+-- Изменим фамилию
+UPDATE profiles
+	SET surname = 'Клюквина-Сергеева'
+	WHERE id = 2;
+
+
+-- Заполняем остальные таблицы
+INSERT INTO communities
+	SELECT * FROM gb_snet_v1.communities;
+
+INSERT INTO friend_requests
+	SELECT * FROM gb_snet_v1.friend_requests;
+
+INSERT INTO messages
+	SELECT * FROM gb_snet_v1.messages AS sm
+    WHERE sm.from_profile_id <= 100
+    AND sm.to_profile_id <= 100
+    LIMIT 100;
+
+INSERT INTO photos
+	SELECT * FROM gb_snet_v1.photo AS sp
+    WHERE sp.profile_id <= 100
+    LIMIT 500;
+
+INSERT INTO posts
+	SELECT * FROM gb_snet_v1.posts AS sp
+    WHERE sp.profile_id <= 100
+    LIMIT 500;
+
+-- Добавим репост
+INSERT INTO repost (post_id, reposted_to, reposted_from)
+	VALUES (
+		(SELECT MIN(p.id) FROM posts AS p),
+        (SELECT MAX(u.id) FROM users AS u),
+        (SELECT MIN(u2.id) + 5 FROM users AS u2)
+    );
 
