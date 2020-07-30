@@ -33,7 +33,7 @@ select * from friend_requests where (initiator_profile_id = 1 or target_profile_
 -- 1) получить идентификаторы друзей, чтобы использоывть в in
 select * from posts where profile_id 
 in (
--- 3,4,10
+3,4,10
 );
 
 -- 2) id друзей которые отправили приглашения
@@ -53,8 +53,18 @@ order by created_at DESC;
 
 -- 8 Находим 10 постов с наибольшим количеством лайков и их авторов
 
-select count(profile_id) total_likes , post_id,
-(select concat(name,' ',lastname) from profiles where id = (select profile_id from posts where id = post_id)) as 'author' 
+select
+	count(profile_id) total_likes,
+    post_id,
+	(
+		select concat(name,' ',lastname)
+        from profiles
+        where id = (
+			select profile_id
+            from posts
+            where id = post_id
+        )
+    ) as 'author' 
 from likes_posts group by post_id order by total_likes desc limit 10;
 
 -- 9 Выводим информацию о количестве непрочитанных сообщений пользователя 1
@@ -74,11 +84,11 @@ where id in (
 	select initiator_profile_id from friend_requests where target_profile_id = 1 and status = 'approved'
 	union
 	select target_profile_id from friend_requests where initiator_profile_id = 1 and status = 'approved'
-)
+);
 
 -- inner join (можно решать задание №2)
 
-select * from users u join profiles as p on p.user_id = u.id
+select * from users u join profiles as p on p.user_id = u.id;
 
 -- limit во вложенных запросах
 select * from profiles where user_id = (select id from users order by id DESC limit 1);
