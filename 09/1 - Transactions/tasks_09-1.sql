@@ -47,4 +47,64 @@ commit;
 *	Создайте представление, которое выводит название name товарной позиции из таблицы products
 *	и соответствующее название каталога name из таблицы catalogs.
 */
+create view prods_cats as
+	select
+		p.id as product_id,
+		p.name as product_name,
+		c.name as `catalog_name`
+	from products as p
+	join catalogs as c on c.id = p.catalog_id;
+
+-- Выберем все из представления
+select * from prods_cats;
+
+
+/**
+*	Задание 3.
+*	Пусть имеется таблица с календарным полем created_at.
+*	В ней размещены разряженые календарные записи за август 2018 года '2018-08-01', '2016-08-04', '2018-08-16' и 2018-08-17.
+*	Составьте запрос, который выводит полный список дат за август, выставляя в соседнем поле значение 1,
+*	если дата присутствует в исходном таблице и 0, если она отсутствует.
+*/
+-- Создадим БД для теста
+create database gb_test character set utf8 collate utf8_general_ci;
+-- Переключимся на новую БД
+use gb_test;
+-- Создадим таблицу
+create table test (
+	id serial primary key,
+    created_at date
+);
+-- Заполним данными
+insert into test (created_at) values
+	('2018-08-01'),
+	('2016-08-04'),
+	('2018-08-16'),
+	('2018-08-17');
+
+-- Создадим переменную с номером месяца
+set @month_num := 8;
+-- Выборка по условию задачи
+select
+	date_format(dates, '%d %b') as dates,
+    if (test.id is not null, 1, 0) as exists_rows,
+    test.id
+from (
+	select makedate(year(now()),1) + interval (@month_num - 1) month + interval (d.day_num - 1) day as dates
+	from (
+		select t*10+u as day_num from
+			(select 0 as t union select 1 union select 2 union select 3) as a,
+			(select 0 as u union select 1 union select 2 union select 3 union select 4 union select 5 union select 6 union select 7 union select 8 union select 9) as b
+		having day_num between 1 and (date_format(LAST_DAY(concat('2020-', @month_num, '-01')), '%d'))
+		order by day_num) as d
+) as dates
+left join test on date_format(test.created_at, '%m-%d') = date_format(dates.dates, '%m-%d')
+order by dates;
+
+
+/**
+*	Задача 4.
+*	Пусть имеется любая таблица с календарным полем created_at.
+*	Создайте запрос, который удаляет устаревшие записи из таблицы, оставляя только 5 самых свежих записей.
+*/
 
