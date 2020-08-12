@@ -107,4 +107,40 @@ order by dates;
 *	Пусть имеется любая таблица с календарным полем created_at.
 *	Создайте запрос, который удаляет устаревшие записи из таблицы, оставляя только 5 самых свежих записей.
 */
+-- Создадим в БД gb_test таблицу users
+drop table if exists `profiles`;
+create table `profiles` (
+	id serial primary key,
+    `name` varchar(255),
+    surname varchar(255),
+    created_at date
+);
+-- Залью в новую таблицу данные из БД gb_vk
+insert into `profiles`
+	select id, `name`, surname, birthday from gb_vk.profiles;
+-- Смотрим что есть
+select count(*) from `profiles`;
+select * from `profiles`;
 
+-- Создаю временную таблицу, в которой будут нужные id пользователей
+drop table if exists p_temp;
+create temporary table p_temp (
+	id bigint
+);
+-- Заполняю временную таблицу нужными данными
+insert into p_temp
+	select id
+	from `profiles`
+	order by created_at desc
+	limit 5;
+-- Смотрим что есть
+select * from p_temp;
+
+set sql_safe_updates = 0;
+-- Теперь удаляю всех кроме 5-ти самых молодых
+delete from `profiles`
+where id not in (
+	select id
+	from p_temp
+);
+set sql_safe_updates = 1;
