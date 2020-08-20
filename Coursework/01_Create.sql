@@ -100,6 +100,76 @@ CREATE TABLE pictures (
         ON UPDATE CASCADE
 ) COMMENT = 'В этой таблице хранятся изобраежния товаров. Для каждого товара может быть несколько изображений';
 
+
+DROP TABLE IF EXISTS prop_value_types;
+CREATE TABLE prop_value_types (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    `type` VARCHAR(255) NOT NULL,
+    `table_name` VARCHAR(255) NOT NULL
+);
+INSERT INTO prop_value_types VALUES
+	(NULL, 'INT', 'prop_int_values'),
+	(NULL, 'FLOAT', 'prop_float_values'),
+	(NULL, 'STRING', 'prop_string_values');
+
+DROP TABLE IF EXISTS prop_types;
+CREATE TABLE prop_types (
+	id SERIAL PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL COMMENT 'Наименование характеристики',
+    prop_value_type_id INT UNSIGNED NOT NULL COMMENT 'ID типа характеристики',
+    FOREIGN KEY (prop_value_type_id)
+		REFERENCES prop_value_types(id)
+        ON UPDATE CASCADE
+);
+INSERT INTO prop_types VALUES
+	(NULL, 'Цвет', 3);
+
+CREATE TABLE prop_int_values (
+	id SERIAL PRIMARY KEY,
+    `value` INT
+);
+CREATE TABLE prop_float_values (
+	id SERIAL PRIMARY KEY,
+    `value` FLOAT
+);
+DROP TABLE IF EXISTS prop_string_values;
+CREATE TABLE prop_string_values (
+	id SERIAL PRIMARY KEY,
+    `value` VARCHAR(255)
+);
+INSERT INTO prop_string_values VALUES
+	(NULL, 'Белый');
+
+
+
+/*CREATE TABLE properties (
+	id SERIAL PRIMARY KEY,
+    -- `name` VARCHAR(255) NOT NULL COMMENT 'Наименование характеристики',
+    -- prop_type_id INT UNSIGNED NOT NULL COMMENT 'ID типа характеристики'
+    prop_type_id BIGINT UNSIGNED NOT NULL,
+    prop_value_id BIGINT UNSIGNED NOT NULL
+);*/
+
+DROP TABLE IF EXISTS goods_properties;
+CREATE TABLE goods_properties (
+	-- id SERIAL PRIMARY KEY,
+    goods_id BIGINT UNSIGNED NOT NULL,
+    -- prop_id BIGINT UNSIGNED NOT NULL COMMENT 'ID характеристики',
+    prop_type_id BIGINT UNSIGNED NOT NULL,
+    prop_value_id BIGINT UNSIGNED NOT NULL,
+    `comment` VARCHAR(255) COMMENT 'Краткий дополнительный комментарий по данной характеристике',
+    FOREIGN KEY (goods_id)
+		REFERENCES goods(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY (prop_type_id)
+		REFERENCES prop_types(id)
+        ON UPDATE CASCADE
+) COMMENT = 'Таблица связывает товар с его характеристиками и типами характеристик';
+INSERT INTO goods_properties VALUES
+	(9, 1, 1, 'Цвет вставок');
+
+
 -- Таблица характеристик (Тут пока сомнительно, т.к. в данном ключе поиск товаров по характеристикам не возможен)
 -- Может быть единицы измерения сформировать в отдельной таблице
 -- DROP TABLE IF EXISTS properties;
@@ -112,6 +182,12 @@ CREATE TABLE pictures (
 --     FOREIGN KEY (goods_id) REFERENCES goods(id)
 -- );
 -- С таблицами характеристик разберусь чуть позже, так как тут сложные отношения будут.
+
+-- Таблица типов характеристик
+/*DROP TABLE IF EXISTS prop_value_types;
+CREATE TEBLE prop_value_types (
+
+) COMMENT = 'Таблица с ';*/
 
 
 /**
@@ -197,4 +273,19 @@ CREATE TABLE financial_operation (
 		REFERENCES financial_types(id)
         ON UPDATE CASCADE
 ) COMMENT = 'Финансовые движения (приходы и расходы)';
+
+
+-- Операции с товарами и деньгами
+DROP TABLE IF EXISTS goods_operations;
+CREATE TABLE goods_operations (
+	id SERIAL PRIMARY KEY,
+    fo_id BIGINT UNSIGNED NOT NULL COMMENT 'ID финансовой операции',
+    goods_id BIGINT UNSIGNED NOT NULL COMMENT 'ID товара',
+    FOREIGN KEY (fo_id)
+		REFERENCES financial_operation(id)
+        ON UPDATE CASCADE,
+	FOREIGN KEY (goods_id)
+		REFERENCES goods(id)
+        ON UPDATE CASCADE
+) COMMENT = 'Таблица для связи операций с товарами и денежными операциями';
 
