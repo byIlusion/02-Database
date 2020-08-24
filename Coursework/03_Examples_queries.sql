@@ -1,16 +1,31 @@
--- Выборка всех характеристик товара
+-- Вывод характеристик товара
 SELECT
-	gp.*
+	gp.goods_id,
+    IF (gp.comment IS NOT NULL, gp.comment, pd.name) AS label,
+    CASE
+		WHEN pd.prop_type_id = 1 THEN pv.int_value
+		WHEN pd.prop_type_id = 2 THEN pv.float_value
+		WHEN pd.prop_type_id = 3 THEN pv.string_value
+    END AS `value`,
+    pd.description
 FROM goods_properties AS gp
-LEFT JOIN properties AS p ON p.id = gp.prop_id
-WHERE gp.goods_id = 9;
+JOIN prop_values AS pv ON pv.id = gp.prop_value_id
+JOIN prop_descriptions AS pd ON pd.id = pv.prop_desc_id
+WHERE goods_id = 5;
 
+
+-- Поиск товаров по цвету
 SELECT
-	*
-FROM goods_properties AS gp
-LEFT JOIN prop_types AS pt ON pt.id = gp.prop_type_id
-LEFT JOIN prop_value_types AS pvt ON pvt.id = pt.prop_value_type_id
--- LEFT JOIN pvt.`table_name` AS val ON val.id = gp.prop_value_id
-WHERE gp.goods_id = 9;
-
-
+	g.id,
+    g.title,
+    IF (gp.comment IS NOT NULL, gp.comment, pd.name) AS label,
+    CASE
+		WHEN pd.prop_type_id = 1 THEN pv.int_value
+		WHEN pd.prop_type_id = 2 THEN pv.float_value
+		WHEN pd.prop_type_id = 3 THEN pv.string_value
+    END AS `value`
+FROM prop_values AS pv
+LEFT JOIN goods_properties AS gp ON gp.prop_value_id = pv.id
+JOIN goods AS g ON g.id = gp.goods_id
+JOIN prop_descriptions AS pd ON pd.id = pv.prop_desc_id
+WHERE pv.string_value = 'Синий';
