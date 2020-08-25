@@ -38,6 +38,32 @@ USE onmove;
 
 
 /**
+*	Каталог
+*/
+-- Категории каталога
+DROP TABLE IF EXISTS categories;
+CREATE TABLE categories (
+	id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL COMMENT 'Наименование категории',
+    description TEXT COMMENT 'Описание категории',
+    parent_id BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ID родительской категории. По-умолчанию 0 (корневая категория)'
+) COMMENT = 'Категории каталога';
+
+-- Таблица для подсчет количества подкатегорий и товаров в категориях каталога
+DROP TABLE IF EXISTS categories_stats;
+CREATE TABLE categories_stats (
+	id BIGINT UNSIGNED UNIQUE NOT NULL PRIMARY KEY COMMENT 'ID категории',
+    count_child_categories INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество дочерних категорий',
+    count_goods BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество товаров в категории',
+    count_goods_all BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество товаров в категории, включая дочернии категории',
+    FOREIGN KEY (id)
+		REFERENCES categories(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+) COMMENT = 'Категории каталога';
+
+
+/**
 *	Товары
 */
 -- Единицы измерения
@@ -67,6 +93,7 @@ CREATE TABLE goods (
     brand_id BIGINT UNSIGNED COMMENT 'ID бренда. Если NULL, то это товар без бренда (NoName)',
     title VARCHAR(255) NOT NULL COMMENT 'Название товара',
     unit_id BIGINT UNSIGNED COMMENT 'ID единицы измерения данного товара',
+    parent_id BIGINT UNSIGNED DEFAULT 0 COMMENT 'ID родительской категории',
     INDEX (article_fix),
     FOREIGN KEY (brand_id)
 		REFERENCES brands(id)
@@ -74,12 +101,16 @@ CREATE TABLE goods (
         ON UPDATE CASCADE,
 	FOREIGN KEY (unit_id)
 		REFERENCES goods_unit(id)
+        ON UPDATE CASCADE,
+	FOREIGN KEY (parent_id)
+		REFERENCES categories(id)
         ON UPDATE CASCADE
+        ON DELETE SET NULL
 ) COMMENT = 'Таблица товаров';
 
 -- Таблица описаний
-DROP TABLE IF EXISTS descriptions;
-CREATE TABLE descriptions (
+DROP TABLE IF EXISTS goods_descriptions;
+CREATE TABLE goods_descriptions (
 	goods_id BIGINT UNSIGNED NOT NULL,
     description TEXT COMMENT 'Подробное описание товара',
     UNIQUE KEY (goods_id),
@@ -129,7 +160,6 @@ DROP TABLE IF EXISTS prop_values;
 CREATE TABLE prop_values (
 	id SERIAL PRIMARY KEY,
     prop_desc_id BIGINT UNSIGNED NOT NULL COMMENT 'ID характеристики',
-    -- prop_type_id BIGINT UNSIGNED NOT NULL COMMENT 'ID типа характеристики',
     int_value INT,
     float_value FLOAT,
     string_value VARCHAR(255),
@@ -140,9 +170,6 @@ CREATE TABLE prop_values (
 	FOREIGN KEY (prop_desc_id)
 		REFERENCES prop_descriptions(id)
         ON UPDATE CASCADE
-	-- FOREIGN KEY (prop_type_id)
--- 		REFERENCES prop_types(id)
---         ON UPDATE CASCADE
 ) COMMENT = 'Таблица значений характеристик для товаров';
 
 -- Связь характеристик с товарами
@@ -223,12 +250,9 @@ CREATE TABLE goods_transit (
 -- Таблицы счетов
 DROP TABLE IF EXISTS financial_types;
 CREATE TABLE financial_types (
-    -- account_type TINYINT NOT NULL COMMENT 'Дебет(1) или Кредит(0)',
     account_code INT UNSIGNED PRIMARY KEY NOT NULL COMMENT 'Код бухгалтерского счета',
     title VARCHAR(255) NOT NULL COMMENT 'Название счета',
     `comment` TEXT COMMENT 'Подробное описание счета'
-    -- CONSTRAINT `account` PRIMARY KEY (account_type, account_code)
-    -- CONSTRAINT `account` PRIMARY KEY (account_code)
 ) COMMENT = 'Типы бухгалтерских счетов с описанием';
 
 -- Таблица сумм
