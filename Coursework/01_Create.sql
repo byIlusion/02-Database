@@ -28,8 +28,6 @@
 
 Так как БД изначально будет работать только локально, то работа с юзерами пока что не требуется.
 Магазинов будет 2, поэтому логичнее сделать 2 копии БД. И т.к. это копии, то разрабатываться будет только одна БД.
-
-Начну с описания товаров, т.к. эта область мне более понятна. С денежными средствами разберусь потом.
 */
 
 
@@ -37,6 +35,32 @@
 DROP DATABASE IF EXISTS onmove;
 CREATE DATABASE onmove character set utf8 collate utf8_general_ci;
 USE onmove;
+
+
+/**
+*	Каталог
+*/
+-- Категории каталога
+DROP TABLE IF EXISTS categories;
+CREATE TABLE categories (
+	id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL COMMENT 'Наименование категории',
+    description TEXT COMMENT 'Описание категории',
+    parent_id BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ID родительской категории. По-умолчанию 0 (корневая категория)'
+) COMMENT = 'Категории каталога';
+
+-- Таблица для подсчет количества подкатегорий и товаров в категориях каталога
+DROP TABLE IF EXISTS categories_stats;
+CREATE TABLE categories_stats (
+	id BIGINT UNSIGNED UNIQUE NOT NULL PRIMARY KEY COMMENT 'ID категории',
+    count_child_categories INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество дочерних категорий',
+    count_goods BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество товаров в категории',
+    count_goods_all BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Количество товаров в категории, включая дочернии категории',
+    FOREIGN KEY (id)
+		REFERENCES categories(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+) COMMENT = 'Категории каталога';
 
 
 /**
@@ -69,16 +93,24 @@ CREATE TABLE goods (
     brand_id BIGINT UNSIGNED COMMENT 'ID бренда. Если NULL, то это товар без бренда (NoName)',
     title VARCHAR(255) NOT NULL COMMENT 'Название товара',
     unit_id BIGINT UNSIGNED COMMENT 'ID единицы измерения данного товара',
+    parent_id BIGINT UNSIGNED DEFAULT 0 COMMENT 'ID родительской категории',
     INDEX (article_fix),
     FOREIGN KEY (brand_id)
 		REFERENCES brands(id)
 		ON DELETE SET NULL
+        ON UPDATE CASCADE,
+	FOREIGN KEY (unit_id)
+		REFERENCES goods_unit(id)
+        ON UPDATE CASCADE,
+	FOREIGN KEY (parent_id)
+		REFERENCES categories(id)
         ON UPDATE CASCADE
+        ON DELETE SET NULL
 ) COMMENT = 'Таблица товаров';
 
 -- Таблица описаний
-DROP TABLE IF EXISTS descriptions;
-CREATE TABLE descriptions (
+DROP TABLE IF EXISTS goods_descriptions;
+CREATE TABLE goods_descriptions (
 	goods_id BIGINT UNSIGNED NOT NULL,
     description TEXT COMMENT 'Подробное описание товара',
     UNIQUE KEY (goods_id),
@@ -101,93 +133,59 @@ CREATE TABLE pictures (
 ) COMMENT = 'В этой таблице хранятся изобраежния товаров. Для каждого товара может быть несколько изображений';
 
 
-DROP TABLE IF EXISTS prop_value_types;
-CREATE TABLE prop_value_types (
-	id INT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
-    `type` VARCHAR(255) NOT NULL,
-    `table_name` VARCHAR(255) NOT NULL
-);
-INSERT INTO prop_value_types VALUES
-	(NULL, 'INT', 'prop_int_values'),
-	(NULL, 'FLOAT', 'prop_float_values'),
-	(NULL, 'STRING', 'prop_string_values');
-
+/**
+*	Характеристики товаров
+*/
+-- Типы характеристик
 DROP TABLE IF EXISTS prop_types;
 CREATE TABLE prop_types (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    `type` VARCHAR(255) NOT NULL
+);
+
+-- Описание конкретных видов характеристик
+DROP TABLE IF EXISTS prop_descriptions;
+CREATE TABLE prop_descriptions (
 	id SERIAL PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL COMMENT 'Наименование характеристики',
-    prop_value_type_id INT UNSIGNED NOT NULL COMMENT 'ID типа характеристики',
-    FOREIGN KEY (prop_value_type_id)
-		REFERENCES prop_value_types(id)
+    prop_type_id INT UNSIGNED NOT NULL COMMENT 'ID типа характеристики',
+    description TEXT COMMENT 'Описание характеристики',
+    FOREIGN KEY (prop_type_id)
+		REFERENCES prop_types(id)
         ON UPDATE CASCADE
 );
-INSERT INTO prop_types VALUES
-	(NULL, 'Цвет', 3);
 
-CREATE TABLE prop_int_values (
+-- Значения характеристик
+DROP TABLE IF EXISTS prop_values;
+CREATE TABLE prop_values (
 	id SERIAL PRIMARY KEY,
-    `value` INT
-);
-CREATE TABLE prop_float_values (
-	id SERIAL PRIMARY KEY,
-    `value` FLOAT
-);
-DROP TABLE IF EXISTS prop_string_values;
-CREATE TABLE prop_string_values (
-	id SERIAL PRIMARY KEY,
-    `value` VARCHAR(255)
-);
-INSERT INTO prop_string_values VALUES
-	(NULL, 'Белый');
+    prop_desc_id BIGINT UNSIGNED NOT NULL COMMENT 'ID характеристики',
+    int_value INT,
+    float_value FLOAT,
+    string_value VARCHAR(255),
+    INDEX (prop_desc_id),
+    INDEX (int_value),
+    INDEX (float_value),
+    INDEX (string_value),
+	FOREIGN KEY (prop_desc_id)
+		REFERENCES prop_descriptions(id)
+        ON UPDATE CASCADE
+) COMMENT = 'Таблица значений характеристик для товаров';
 
-
-
-/*CREATE TABLE properties (
-	id SERIAL PRIMARY KEY,
-    -- `name` VARCHAR(255) NOT NULL COMMENT 'Наименование характеристики',
-    -- prop_type_id INT UNSIGNED NOT NULL COMMENT 'ID типа характеристики'
-    prop_type_id BIGINT UNSIGNED NOT NULL,
-    prop_value_id BIGINT UNSIGNED NOT NULL
-);*/
-
+-- Связь характеристик с товарами
 DROP TABLE IF EXISTS goods_properties;
 CREATE TABLE goods_properties (
-	-- id SERIAL PRIMARY KEY,
     goods_id BIGINT UNSIGNED NOT NULL,
-    -- prop_id BIGINT UNSIGNED NOT NULL COMMENT 'ID характеристики',
-    prop_type_id BIGINT UNSIGNED NOT NULL,
     prop_value_id BIGINT UNSIGNED NOT NULL,
     `comment` VARCHAR(255) COMMENT 'Краткий дополнительный комментарий по данной характеристике',
     FOREIGN KEY (goods_id)
 		REFERENCES goods(id)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
-    FOREIGN KEY (prop_type_id)
-		REFERENCES prop_types(id)
+    FOREIGN KEY (prop_value_id)
+		REFERENCES prop_values(id)
         ON UPDATE CASCADE
-) COMMENT = 'Таблица связывает товар с его характеристиками и типами характеристик';
-INSERT INTO goods_properties VALUES
-	(9, 1, 1, 'Цвет вставок');
-
-
--- Таблица характеристик (Тут пока сомнительно, т.к. в данном ключе поиск товаров по характеристикам не возможен)
--- Может быть единицы измерения сформировать в отдельной таблице
--- DROP TABLE IF EXISTS properties;
--- CREATE TABLE properties (
--- 	goods_id BIGINT UNSIGNED NOT NULL,
---     property VARCHAR(50) NOT NULL,
---     `value` VARCHAR(50) NOT NULL,
---     unit VARCHAR(10) NOT NULL,
---     INDEX (goods_id),
---     FOREIGN KEY (goods_id) REFERENCES goods(id)
--- );
--- С таблицами характеристик разберусь чуть позже, так как тут сложные отношения будут.
-
--- Таблица типов характеристик
-/*DROP TABLE IF EXISTS prop_value_types;
-CREATE TEBLE prop_value_types (
-
-) COMMENT = 'Таблица с ';*/
+) COMMENT = 'Таблица связывает товар со значениями характеристики';
 
 
 /**
@@ -249,15 +247,12 @@ CREATE TABLE goods_transit (
 *	Финансы
 */
 -- С финансами пока трудно понять как приавильно. Но пока так...
-
 -- Таблицы счетов
 DROP TABLE IF EXISTS financial_types;
 CREATE TABLE financial_types (
-	id SERIAL PRIMARY KEY,
-    `account` VARCHAR(7) NOT NULL COMMENT 'Код бухгалтерского счета',
+    account_code INT UNSIGNED PRIMARY KEY NOT NULL COMMENT 'Код бухгалтерского счета',
     title VARCHAR(255) NOT NULL COMMENT 'Название счета',
-    `comment` TEXT COMMENT 'Подробное описание счета',
-    INDEX (`account`)
+    `comment` TEXT COMMENT 'Подробное описание счета'
 ) COMMENT = 'Типы бухгалтерских счетов с описанием';
 
 -- Таблица сумм
@@ -265,12 +260,16 @@ DROP TABLE IF EXISTS financial_operation;
 CREATE TABLE financial_operation (
 	id SERIAL PRIMARY KEY,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время проведенной денежной операции',
-    account_id BIGINT UNSIGNED NOT NULL COMMENT 'ID бухгалтерского счета. Определяет направление операции',
+    account_debet INT UNSIGNED NOT NULL COMMENT 'Код дебетового счета',
+    account_credit INT UNSIGNED NOT NULL COMMENT 'Код кредитового счета',
     amount DECIMAL(10,2) UNSIGNED NOT NULL COMMENT 'Сумма операции',
     INDEX (created_at),
-    INDEX (account_id),
-    FOREIGN KEY (account_id)
-		REFERENCES financial_types(id)
+    INDEX (account_debet, account_credit),
+    FOREIGN KEY (account_debet)
+		REFERENCES financial_types(account_code)
+        ON UPDATE CASCADE,
+    FOREIGN KEY (account_credit)
+		REFERENCES financial_types(account_code)
         ON UPDATE CASCADE
 ) COMMENT = 'Финансовые движения (приходы и расходы)';
 
